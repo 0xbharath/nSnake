@@ -27,14 +27,14 @@
 #  PREFIX   Installs the package on a custom directory
 #           (overwrites root)
 #  CFLAGS   Changes the C flags used on compilation
-#  CDEBUG   If you wish to build on debug mode, add 'CDEBUG=-g'
+#  DEBUG    If you wish to build in debug mode, add 'DEBUG=1'
 #  CFLAGS_PLATFORM
 #           User specified compiler flags
 #  LDFLAGS_PLATFORM
 #           User specified linker flags
 #
 
-# Uncomment line below to tun on verbose mode permanently
+# Uncomment line below to turn on verbose mode permanently
 #V = 1;
 
 # General Info
@@ -63,9 +63,17 @@ MANPAGE   = doc/man/$(MANFILE)
 
 # Build info
 EXE         = $(PACKAGE)
-CDEBUG      = -O2
+# Debug configuration: When DEBUG=1 is set, compile with debugging symbols,
+# disable optimizations, and preserve the frame pointer.
+ifdef DEBUG
+CDEBUG = -g -O0 -fno-omit-frame-pointer -D_NSNAKE_DEBUG
+else
+CDEBUG = -O2
+endif
+
 CXXFLAGS    = $(CDEBUG) -Wall -Wextra $(CFLAGS_PLATFORM)
-LDFLAGS     = -lncurses $(LDFLAGS_PLATFORM)
+# Added -rdynamic to export all symbols for Frida
+LDFLAGS     = -rdynamic -lncurses $(LDFLAGS_PLATFORM)
 INCLUDESDIR = -I"src/" -I"deps/"
 LIBSDIR     =
 
@@ -84,7 +92,11 @@ ENGINE_OBJECTS = $(ENGINE_FILES:.cpp=.o)
 COMMANDER_DIR     = deps/commander
 COMMANDER_FILES   = $(shell find $(COMMANDER_DIR) -type f -name '*.c')
 COMMANDER_OBJECTS = $(COMMANDER_FILES:.c=.o)
-COMMANDER_CFLAGS  = -O2 -Wall -Wextra $(CFLAGS_PLATFORM)
+ifdef DEBUG
+COMMANDER_CFLAGS = -g -O0 -fno-omit-frame-pointer -D_NSNAKE_DEBUG $(CFLAGS_PLATFORM)
+else
+COMMANDER_CFLAGS = -O2 -Wall -Wextra $(CFLAGS_PLATFORM)
+endif
 
 DEFINES = -DVERSION=\""$(VERSION)"\"                  \
           -DPACKAGE=\""$(PACKAGE)"\"                  \
@@ -107,12 +119,6 @@ ifdef DESTDIR
 ROOT = -
 else
 ROOT =
-endif
-
-ifdef DEBUG
-CDEBUG = -D_NSNAKE_DEBUG
-else
-CDEBUG =
 endif
 
 # Make targets
@@ -141,7 +147,7 @@ install: all
 	$(MUTE)install -pdm755 $(DESTDIR)$(DESKTOPDIR)
 	$(MUTE)install -pm644 misc/nsnake.desktop $(DESTDIR)$(DESKTOPDIR)
 
-	# $(PACKAGE) successfuly installed!
+	# $(PACKAGE) successfully installed!
 
 uninstall:
 	# Uninstalling...
@@ -220,4 +226,3 @@ $(ENGINE_DIR)/%.o: $(ENGINE_DIR)/%.cpp
 $(COMMANDER_DIR)/%.o: $(COMMANDER_DIR)/%.c
 	# Compiling $<...
 	$(MUTE)$(CC) $(COMMANDER_CFLAGS) $< -c -o $@
-
